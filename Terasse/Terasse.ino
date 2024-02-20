@@ -28,9 +28,9 @@ Servo SERVO;
 
 bool light_switch = true;
 int selected_led = 0;
-int temperatureThreshold_1 = 23;
-int temperatureThreshold_2 = 26;
-int temperatureThreshold_3 = 28;
+int temperatureThreshold_1 = 30;
+int temperatureThreshold_2 = 25;
+int temperatureThreshold_3 = 26;
 int motionDetected = 0;
 int lightIntensityThreshold = 500;
 
@@ -40,11 +40,11 @@ boolean b1_last_state = HIGH;
 boolean b2_value = false;
 boolean b2_last_state = HIGH;
 
-boolean b3_value = false;
+boolean is_manual = false;
 boolean b3_last_state = HIGH;
 
 bool blind_opened = false;
-
+bool light_on = false;
 
 
 void setup() {
@@ -79,7 +79,33 @@ void loop() {
   int temp = dht.readTemperature();
   int lightLevel = LIGTH_METER.readLightLevel();
 
-  checkButtonValue();
+  boolean b1 = digitalRead(BUTTON_BLIND_DOWN);
+  if(b1_last_state == HIGH && b1==LOW)
+  {
+    if(is_manual) {
+      b1_value = !b1_value;
+      interactBlind();
+    }
+  }
+  b1_last_state = b1;
+
+  boolean b2 = digitalRead(BUTTON_BLIND_UP);
+  if(b2_last_state == HIGH && b2==LOW)
+  {
+    if(is_manual) {
+      b2_value = !b2_value;
+      interactLight();
+    }
+
+  }
+  b2_last_state = b2;
+
+  boolean b3 = digitalRead(BUTTON_MANUAL);
+  if(b3_last_state == HIGH && b3==LOW)
+  {
+    is_manual = !is_manual;
+  }
+  b3_last_state = b3;
 
   if (analogRead(POTENTIOMETER_PIN) < 511) {
     selected_led = 0;
@@ -88,10 +114,12 @@ void loop() {
   }
   
   motionDetected = digitalRead(PIR_PIN);
-  if (lightLevel > lightIntensityThreshold) {
-    closeBlind();
-  } else {
-    openBlind();
+  if (is_manual == 0) {  
+    if (lightLevel > lightIntensityThreshold) {
+      closeBlind();
+    } else {
+      openBlind();
+    }
   }
   
   if (temp < temperatureThreshold_1) {
@@ -104,7 +132,7 @@ void loop() {
     fan(3); 
   }
 
-  if (light_switch) {
+  if (light_switch && is_manual == 0) {
     if (lightLevel > lightIntensityThreshold) {
       lightDown();
     } else if (motionDetected) {
@@ -112,6 +140,10 @@ void loop() {
     } else {
       lightLow(); 
     }
+  }
+
+  if (is_manual == 1){
+    delay(500);
   }
 }
 
@@ -163,36 +195,19 @@ void interactBlind() {
   }
 }
 
+void interactLight() {
+  if (b2_value == 1) {
+    lightUp();
+  } else {
+    lightDown();
+  }
+}
+
 void openBlind() {
   blind_opened = true;
 
   SERVO.write(90); 
   delay(500);
-}
-
-void checkButtonValue() {
- 
-
-  boolean b1 = digitalRead(BUTTON_BLIND_DOWN);
-  if(b1_last_state == HIGH && b1==LOW)
-  {
-    b1_value = !b1_value;
-  }
-  b1_last_state = b1;
-
-  boolean b2 = digitalRead(BUTTON_BLIND_UP);
-  if(b2_last_state == HIGH && b2==LOW)
-  {
-    b2_value = !b2_value;
-  }
-  b2_last_state = b2;
-
-  boolean b3 = digitalRead(BUTTON_MANUAL);
-  if(b3_last_state == HIGH && b3==LOW)
-  {
-    b3_value = !b3_value;
-  }
-  b3_last_state = b3;
 }
 
 void closeBlind() {
@@ -201,6 +216,7 @@ void closeBlind() {
   SERVO.write(0);
   delay(500);
 }
+
 
 
 
@@ -227,7 +243,7 @@ void logs() {
   Serial.print(b2_value);
 
    Serial.print("Btn 3 : ");
-  Serial.print(b3_value);
+  Serial.print(is_manual);
   Serial.println();
 
 }
